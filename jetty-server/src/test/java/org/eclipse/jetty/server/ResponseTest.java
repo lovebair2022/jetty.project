@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -277,6 +277,45 @@ public class ResponseTest
         response.addHeader("Content-Type","application/json");
         response.getWriter();
         assertEquals("application/json",response.getContentType());
+    }
+    
+    @Test
+    public void testInferredCharset() throws Exception
+    {
+        // Inferred from encoding.properties
+        Response response = getResponse();
+
+        assertEquals(null, response.getContentType());
+
+        response.setHeader("Content-Type", "application/xhtml+xml");
+        assertEquals("application/xhtml+xml", response.getContentType());
+        response.getWriter();
+        assertEquals("application/xhtml+xml;charset=utf-8", response.getContentType());
+        assertEquals("utf-8", response.getCharacterEncoding());
+    }
+    
+    @Test
+    public void testAssumedCharset() throws Exception
+    {
+        Response response = getResponse();
+
+        // Assumed from known types
+        assertEquals(null, response.getContentType());
+        response.setHeader("Content-Type", "text/json");
+        assertEquals("text/json", response.getContentType());
+        response.getWriter();
+        assertEquals("text/json", response.getContentType());
+        assertEquals("utf-8", response.getCharacterEncoding());
+
+        response.recycle();
+
+        // Assumed from encoding.properties
+        assertEquals(null, response.getContentType());
+        response.setHeader("Content-Type", "application/vnd.api+json");
+        assertEquals("application/vnd.api+json", response.getContentType());
+        response.getWriter();
+        assertEquals("application/vnd.api+json", response.getContentType());
+        assertEquals("utf-8", response.getCharacterEncoding());
     }
 
     @Test

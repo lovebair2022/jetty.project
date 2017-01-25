@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -219,11 +219,15 @@ public class HttpChannelOverHttp extends HttpChannel implements HttpParser.Reque
     @Override
     public void earlyEOF()
     {
+        _httpConnection.getGenerator().setPersistent(false);
         // If we have no request yet, just close
         if (_metadata.getMethod() == null)
             _httpConnection.close();
-        else if (onEarlyEOF())
+        else if (onEarlyEOF() || _delayedForContent)
+        { 
+            _delayedForContent = false;
             handle();
+        }
     }
 
     @Override

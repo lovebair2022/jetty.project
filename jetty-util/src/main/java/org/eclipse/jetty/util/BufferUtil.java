@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -913,39 +913,22 @@ public class BufferUtil
         }
     }
 
-    static final Field fdMappedByteBuffer;
-    static
-    {
-        Field fd = null;
-        try
-        {
-            fd=MappedByteBuffer.class.getDeclaredField("fd");
-            fd.setAccessible(true);
-        }
-        catch(Exception e)
-        {   
-        }
-        fdMappedByteBuffer=fd;
-    }
-
     public static boolean isMappedBuffer(ByteBuffer buffer)
     {
         if (!(buffer instanceof MappedByteBuffer))
             return false;
         MappedByteBuffer mapped = (MappedByteBuffer) buffer;
 
-        if (fdMappedByteBuffer!=null)
+        try 
         {
-            try
-            {
-                if (fdMappedByteBuffer.get(mapped) instanceof FileDescriptor)
-                    return true;
-            }
-            catch(Exception e)
-            {
-            }
-        }            
-        return false;
+            // Check if it really is a mapped buffer
+            mapped.isLoaded();
+            return true;
+        }
+        catch(UnsupportedOperationException e)
+        {
+            return false;
+        }
     }
     
     

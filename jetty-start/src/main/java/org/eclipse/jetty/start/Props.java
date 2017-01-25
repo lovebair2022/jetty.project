@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -190,7 +190,7 @@ public final class Props implements Iterable<Prop>
         return expand(str,new Stack<String>());
     }
 
-    public String expand(String str, Stack<String> seenStack)
+    private String expand(String str, Stack<String> seenStack)
     {
         if (str == null)
         {

@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -582,16 +582,18 @@ public class HttpConnectionTest
             checkContains(response,offset,"12345");
 
             offset=0;
+            Log.getLogger(DumpHandler.class).info("Expecting java.io.UnsupportedEncodingException");
             response=connector.getResponse("GET /R1 HTTP/1.1\r\n"+
-                                           "Host: localhost\r\n"+
-                                           "Transfer-Encoding: chunked\r\n"+
-                                           "Content-Type: text/plain; charset=unknown\r\n"+
-                                           "Connection: close\r\n"+
-                                           "\r\n"+
-                                           "5;\r\n"+
-                                           "12345\r\n"+
-                                           "0;\r\n" +
-                                           "\r\n");
+                "Host: localhost\r\n"+
+                "Transfer-Encoding: chunked\r\n"+
+                "Content-Type: text/plain; charset=unknown\r\n"+
+                "Connection: close\r\n"+
+                "\r\n"+
+                "5;\r\n"+
+                "12345\r\n"+
+                "0;\r\n" +
+                "\r\n");
+
             offset = checkContains(response,offset,"HTTP/1.1 200");
             offset = checkContains(response,offset,"encoding=unknown");
             offset = checkContains(response,offset,"/R1");

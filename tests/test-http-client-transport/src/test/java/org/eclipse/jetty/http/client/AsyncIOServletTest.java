@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -1137,6 +1137,10 @@ public class AsyncIOServletTest extends AbstractTest
                 break;
             case H2C:
             case H2:
+                // In case of HTTP/2, we not only send the request, but also the preface and
+                // SETTINGS frames. SETTINGS frame need to be replied, so we want to wait to
+                // write the reply before shutting output down, so that the test does not fail.
+                Thread.sleep(1000);
                 Session session = ((HttpConnectionOverHTTP2)connection).getSession();
                 ((HTTP2Session)session).getEndPoint().shutdownOutput();
                 break;

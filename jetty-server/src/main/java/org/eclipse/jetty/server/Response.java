@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -797,7 +797,15 @@ public class Response implements HttpServletResponse
     public String getCharacterEncoding()
     {
         if (_characterEncoding == null)
-            _characterEncoding = StringUtil.__ISO_8859_1;
+        {
+            String encoding = MimeTypes.getCharsetAssumedFromContentType(_contentType);
+            if (encoding!=null)
+                return encoding;
+            encoding = MimeTypes.getCharsetInferredFromContentType(_contentType);
+            if (encoding!=null)
+                return encoding;
+            return StringUtil.__ISO_8859_1;
+        }
         return _characterEncoding;
     }
 
@@ -837,10 +845,14 @@ public class Response implements HttpServletResponse
                     encoding=_mimeType.getCharsetString();
                 else
                 {
-                    encoding = MimeTypes.inferCharsetFromContentType(_contentType);
+                    encoding = MimeTypes.getCharsetAssumedFromContentType(_contentType);
                     if (encoding == null)
-                        encoding = StringUtil.__ISO_8859_1;
-                    setCharacterEncoding(encoding,EncodingFrom.INFERRED);
+                    {
+                        encoding = MimeTypes.getCharsetInferredFromContentType(_contentType);
+                        if (encoding == null)
+                            encoding = StringUtil.__ISO_8859_1;
+                        setCharacterEncoding(encoding,EncodingFrom.INFERRED);
+                    }
                 }
             }
 

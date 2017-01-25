@@ -1,6 +1,6 @@
 //
 //  ========================================================================
-//  Copyright (c) 1995-2016 Mort Bay Consulting Pty. Ltd.
+//  Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the Eclipse Public License v1.0
@@ -161,6 +161,7 @@ public class HttpParser
     private int _responseStatus;
     private int _headerBytes;
     private boolean _host;
+    private boolean _headerComplete;
 
     /* ------------------------------------------------------------------------------- */
     private volatile State _state=State.START;
@@ -736,6 +737,7 @@ public class HttpParser
                         setState(State.END);
                         BufferUtil.clear(buffer);
                         handle=_handler.headerComplete()||handle;
+                        _headerComplete=true;
                         handle=_handler.messageComplete()||handle;
                         return handle;
                     }
@@ -806,6 +808,7 @@ public class HttpParser
                             setState(State.END);
                             BufferUtil.clear(buffer);
                             handle=_handler.headerComplete()||handle;
+                            _headerComplete=true;
                             handle=_handler.messageComplete()||handle;
                             return handle;
                         }
@@ -1083,22 +1086,26 @@ public class HttpParser
                                 case EOF_CONTENT:
                                     setState(State.EOF_CONTENT);
                                     handle=_handler.headerComplete()||handle;
+                                    _headerComplete=true;
                                     return handle;
 
                                 case CHUNKED_CONTENT:
                                     setState(State.CHUNKED_CONTENT);
                                     handle=_handler.headerComplete()||handle;
+                                    _headerComplete=true;
                                     return handle;
 
                                 case NO_CONTENT:
                                     setState(State.END);
                                     handle=_handler.headerComplete()||handle;
+                                    _headerComplete=true;
                                     handle=_handler.messageComplete()||handle;
                                     return handle;
 
                                 default:
                                     setState(State.CONTENT);
                                     handle=_handler.headerComplete()||handle;
+                                    _headerComplete=true;
                                     return handle;
                             }
                         }
@@ -1465,38 +1472,29 @@ public class HttpParser
             LOG.warn("parse exception: {} in {} for {}",e.toString(),_state,_handler);
             if (DEBUG)
                 LOG.debug(e);
+            badMessage();
 
-            switch(_state)
-            {
-                case CLOSED:
-                    break;
-                case CLOSE:
-                    _handler.earlyEOF();
-                    break;
-                default:
-                    setState(State.CLOSE);
-                    _handler.badMessage(400,"Bad Message "+e.toString());
-            }
         }
         catch(Exception|Error e)
         {
             BufferUtil.clear(buffer);
-
             LOG.warn("parse exception: "+e.toString()+" for "+_handler,e);
-
-            switch(_state)
-            {
-                case CLOSED:
-                    break;
-                case CLOSE:
-                    _handler.earlyEOF();
-                    break;
-                default:
-                    setState(State.CLOSE);
-                    _handler.badMessage(400,null);
-            }
+            badMessage();
         }
         return false;
+    }
+    
+    protected void badMessage()
+    {
+        if (_headerComplete)
+        {
+            _handler.earlyEOF();
+        }
+        else if (_state!=State.CLOSED)
+        {
+            setState(State.CLOSE);
+            _handler.badMessage(400,_requestHandler!=null?"Bad Request":"Bad Response");
+        }
     }
 
     protected boolean parseContent(ByteBuffer buffer)
@@ -1691,6 +1689,7 @@ public class HttpParser
         _contentChunk=null;
         _headerBytes=0;
         _host=false;
+        _headerComplete=false;
     }
 
     /* ------------------------------------------------------------------------------- */
