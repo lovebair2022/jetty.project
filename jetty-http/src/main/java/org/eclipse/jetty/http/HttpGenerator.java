@@ -281,52 +281,12 @@ public class HttpGenerator
 
             case COMMITTED:
             {
-                int len = BufferUtil.length(content);
-
-                if (len>0)
-                {
-                    // Do we need a chunk buffer?
-                    if (isChunking())
-                    {
-                        // Do we need a chunk buffer?
-                        if (chunk==null)
-                            return Result.NEED_CHUNK;
-                        BufferUtil.clearToFill(chunk);
-                        prepareChunk(chunk,len);
-                        BufferUtil.flipToFlush(chunk,0);
-                    }
-                    _contentPrepared+=len;
-                }
-
-                if (last)
-                    _state=State.COMPLETING;
-
-                return len>0?Result.FLUSH:Result.CONTINUE;
+                return committed(chunk,content,last);
             }
 
             case COMPLETING:
             {
-                if (BufferUtil.hasContent(content))
-                {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("discarding content in COMPLETING");
-                    BufferUtil.clear(content);
-                }
-
-                if (isChunking())
-                {
-                    // Do we need a chunk buffer?
-                    if (chunk==null)
-                        return Result.NEED_CHUNK;
-                    BufferUtil.clearToFill(chunk);
-                    prepareChunk(chunk,0);
-                    BufferUtil.flipToFlush(chunk,0);
-                    _endOfContent=EndOfContent.UNKNOWN_CONTENT;
-                    return Result.FLUSH;
-                }
-
-                _state=State.END;
-               return Boolean.TRUE.equals(_persistent)?Result.DONE:Result.SHUTDOWN_OUT;
+                return completing(chunk,content);
             }
 
             case END:
@@ -343,6 +303,80 @@ public class HttpGenerator
         }
     }
 
+    private Result committed( ByteBuffer chunk, ByteBuffer content, boolean last)
+    {
+        int len = BufferUtil.length(content);
+
+        // handle the content.
+        if (len>0)
+        {
+            if (isChunking())
+            {
+                if (chunk==null)
+                    return Result.NEED_CHUNK;
+                BufferUtil.clearToFill(chunk);
+                prepareChunk(chunk,len);
+                BufferUtil.flipToFlush(chunk,0);
+            }
+            _contentPrepared+=len;
+        }
+
+        if (last)
+        {
+            _state=State.COMPLETING;
+            return len>0?Result.FLUSH:Result.CONTINUE;
+        }
+        return len>0?Result.FLUSH:Result.DONE;
+    }
+    
+    private Result completing( ByteBuffer chunk, ByteBuffer content)
+    {
+        if (BufferUtil.hasContent(content))
+        {
+            if (LOG.isDebugEnabled())
+                LOG.debug("discarding content in COMPLETING");
+            BufferUtil.clear(content);
+        }
+
+        if (isChunking())
+        {
+            if (_trailers!=null)
+            {
+                // Do we need a chunk buffer?
+                if (chunk==null || chunk.capacity()<=CHUNK_SIZE)
+                    return Result.NEED_CHUNK_TRAILER;
+                
+                HttpFields trailers = _trailers.get();
+
+                if (trailers!=null)
+                {
+                    // Write the last chunk
+                    BufferUtil.clearToFill(chunk);
+                    generateTrailers(chunk,trailers);
+                    BufferUtil.flipToFlush(chunk,0);
+                    _endOfContent=EndOfContent.UNKNOWN_CONTENT;
+                    return Result.FLUSH;
+                }
+            }
+
+            // Do we need a chunk buffer?
+            if (chunk==null)
+                return Result.NEED_CHUNK;
+
+            // Write the last chunk
+            BufferUtil.clearToFill(chunk);
+            prepareChunk(chunk,0);
+            BufferUtil.flipToFlush(chunk,0);
+            _endOfContent=EndOfContent.UNKNOWN_CONTENT;
+            return Result.FLUSH;   
+        }
+
+        _state=State.END;
+       return Boolean.TRUE.equals(_persistent)?Result.DONE:Result.SHUTDOWN_OUT;
+
+    }
+    
+    
     /* ------------------------------------------------------------ */
     @Deprecated
     public Result generateResponse(MetaData.Response info, ByteBuffer header, ByteBuffer chunk, ByteBuffer content, boolean last) throws IOException
@@ -446,29 +480,7 @@ public class HttpGenerator
 
             case COMMITTED:
             {
-                int len = BufferUtil.length(content);
-
-                // handle the content.
-                if (len>0)
-                {
-                    if (isChunking())
-                    {
-                        if (chunk==null)
-                            return Result.NEED_CHUNK;
-                        BufferUtil.clearToFill(chunk);
-                        prepareChunk(chunk,len);
-                        BufferUtil.flipToFlush(chunk,0);
-                    }
-                    _contentPrepared+=len;
-                }
-
-                if (last)
-                {
-                    _state=State.COMPLETING;
-                    return len>0?Result.FLUSH:Result.CONTINUE;
-                }
-                return len>0?Result.FLUSH:Result.DONE;
-
+                return committed(chunk,content,last);
             }
 
             case COMPLETING_1XX:
@@ -479,49 +491,7 @@ public class HttpGenerator
 
             case COMPLETING:
             {
-                if (BufferUtil.hasContent(content))
-                {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("discarding content in COMPLETING");
-                    BufferUtil.clear(content);
-                }
-
-                if (isChunking())
-                {
-                    if (_trailers!=null)
-                    {
-                        // Do we need a chunk buffer?
-                        if (chunk==null || chunk.capacity()<=CHUNK_SIZE)
-                            return Result.NEED_CHUNK_TRAILER;
-                        
-                        HttpFields trailers = _trailers.get();
-
-                        if (trailers!=null)
-                        {
-                            // Write the last chunk
-                            BufferUtil.clearToFill(chunk);
-                            generateTrailers(chunk,trailers);
-                            BufferUtil.flipToFlush(chunk,0);
-                            _endOfContent=EndOfContent.UNKNOWN_CONTENT;
-                            return Result.FLUSH;
-                        }
-                    }
-
-                    // Do we need a chunk buffer?
-                    if (chunk==null)
-                        return Result.NEED_CHUNK;
-
-                    // Write the last chunk
-                    BufferUtil.clearToFill(chunk);
-                    prepareChunk(chunk,0);
-                    BufferUtil.flipToFlush(chunk,0);
-                    _endOfContent=EndOfContent.UNKNOWN_CONTENT;
-                    return Result.FLUSH;   
-                }
-
-                _state=State.END;
-
-               return Boolean.TRUE.equals(_persistent)?Result.DONE:Result.SHUTDOWN_OUT;
+                return completing(chunk,content);
             }
 
             case END:
